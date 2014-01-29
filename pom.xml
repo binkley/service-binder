@@ -56,13 +56,11 @@
         </developer>
     </developers>
 
-<!-- TODO: Create children
     <modules>
-        <module>guice-loader</module>
-        <module>guice-loader-annotation</module>
-        <module>guice-loader-maven-plugin</module>
+        <module>core</module>
+        <module>annotation</module>
+        <module>maven-plugin</module>
     </modules>
--->
 
     <properties>
         <guice.version>3.0</guice.version>
