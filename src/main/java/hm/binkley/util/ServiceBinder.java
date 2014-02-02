@@ -35,12 +35,12 @@ import javax.annotation.Nullable;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.LineNumberReader;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.Enumeration;
 import java.util.regex.Pattern;
 
+import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static java.lang.Character.charCount;
 import static java.lang.Character.isWhitespace;
 import static java.lang.ClassLoader.getSystemClassLoader;
@@ -66,43 +66,43 @@ public final class ServiceBinder {
             @Nonnull final Class<T> service, @Nullable ClassLoader classLoader) {
         if (null == classLoader)
             classLoader = getSystemClassLoader();
-        final Multibinder<T> bindings = Multibinder.newSetBinder(binder, service);
+        final Multibinder<T> bindings = newSetBinder(binder, service);
         final Enumeration<URL> configs = configs(service, classLoader);
-        while (configs.hasMoreElements()) {
-            final URL config = configs.nextElement();
-            final LineNumberReader reader = config(service, config);
-            try {
-                String implementation;
-                while (null != (implementation = implementation(service, config, reader))) {
-                    if (skip(implementation))
-                        continue;
-                    bindings.addBinding().to(x(service, classLoader, config, reader.getLineNumber(),
-                            implementation));
-                }
-            } finally {
-                try {
-                    reader.close();
-                } catch (final IOException e) {
-                    fail(service, config + ": Cannot close", e);
-                }
-            }
-        }
+        while (configs.hasMoreElements())
+            bind(bindings, service, classLoader, configs.nextElement());
         return bindings;
     }
 
-    private static <T> Class<? extends T> x(final Class<T> service, final ClassLoader classLoader,
-            final URL config, final int lineNumber, final String className) {
+    private static <T> void bind(final Multibinder<T> bindings, final Class<T> service,
+            final ClassLoader classLoader, final URL config) {
+        final BufferedReader reader = config(service, config);
+        try {
+            String implementation;
+            while (null != (implementation = implementation(service, config, reader)))
+                if (!skip(implementation))
+                    bindings.addBinding()
+                            .to(loadClass(service, classLoader, config, implementation));
+        } finally {
+            try {
+                reader.close();
+            } catch (final IOException e) {
+                fail(service, config + ": Cannot close", e);
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> Class<? extends T> loadClass(final Class<T> service,
+            final ClassLoader classLoader, final URL config, final String className) {
         try {
             return (Class<? extends T>) classLoader.loadClass(className);
         } catch (final ClassNotFoundException e) {
-            return fail(service,
-                    config + ": Cannot bind implementation at " + lineNumber + " for " + className,
-                    e);
+            return fail(service, config + ": Cannot bind implementation for " + className, e);
         }
     }
 
     private static String implementation(final Class<?> service, final URL config,
-            final LineNumberReader reader) {
+            final BufferedReader reader) {
         try {
             final String line = reader.readLine();
             if (null == line)
@@ -110,15 +110,13 @@ public final class ServiceBinder {
             else
                 return COMMENT.matcher(line).replaceFirst("").trim();
         } catch (final IOException e) {
-            return fail(service, config + ": Cannot read service configuration at line " + reader
-                    .getLineNumber(), e);
+            return fail(service, config + ": Cannot read service configuration", e);
         }
     }
 
-    private static LineNumberReader config(final Class<?> service, final URL config) {
+    private static BufferedReader config(final Class<?> service, final URL config) {
         try {
-            return new LineNumberReader(
-                    new BufferedReader(new InputStreamReader(config.openStream(), UTF8)));
+            return new BufferedReader(new InputStreamReader(config.openStream(), UTF8));
         } catch (final IOException e) {
             return fail(service, config + ": Cannot read service configuration", e);
         }
