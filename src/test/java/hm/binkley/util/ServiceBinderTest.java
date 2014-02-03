@@ -31,7 +31,7 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.TypeLiteral;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Test;
 import org.kohsuke.MetaInfServices;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,6 +43,8 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static com.google.inject.Guice.createInjector;
 import static com.google.inject.name.Names.named;
@@ -55,12 +57,11 @@ import static org.junit.Assert.assertThat;
  * {@code ServiceBinderTest} tests {@link ServiceBinder}.
  *
  * @author <a href="mailto:binkley@alumni.rice.edu">B. K. Oxley (binkley)</a>
- * @todo Needs documentation.
  */
 public final class ServiceBinderTest {
-    @BeforeClass
-    public static void setUp() {
-        // TODO: Shut up Spring logging
+    @Before
+    public void setUp() {
+        Logger.getLogger("org.springframework").setLevel(Level.WARNING);
     }
 
     @Test
