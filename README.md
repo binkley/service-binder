@@ -24,11 +24,11 @@ thread-context class loader.
 ```java
 public interface Bob {}
 
-@MetaInfServices(Bob.class)
+@MetaInfServices
 public static final class Fred
         implements Bob {}
 
-@MetaInfServices(Bob.class)
+@MetaInfServices
 public static final class Nancy
         implements Bob {
     @Inject
