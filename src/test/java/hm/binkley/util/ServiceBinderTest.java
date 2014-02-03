@@ -56,6 +56,7 @@ public class ServiceBinderTest {
         for (final Bob bob : createInjector(new TestModule())
                 .getInstance(Key.get(new TypeLiteral<Set<Bob>>() {})))
             found.add(bob.getClass());
+        
         final Set<Class<? extends Bob>> expected = new HashSet<Class<? extends Bob>>();
         expected.add(Fred.class);
         expected.add(Nancy.class);
