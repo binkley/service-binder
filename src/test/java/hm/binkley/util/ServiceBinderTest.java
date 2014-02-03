@@ -38,7 +38,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static com.google.inject.Guice.createInjector;
-import static hm.binkley.util.ServiceBinder.on;
+import static com.google.inject.name.Names.named;
+import static hm.binkley.util.ServiceBinder.with;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -91,8 +92,9 @@ public class ServiceBinderTest {
             extends AbstractModule {
         @Override
         protected void configure() {
+            bindConstant().annotatedWith(named("cat-name")).to("Felix");
             bind(ServiceBinderTest.class).toInstance(ServiceBinderTest.this);
-            on(binder()).bind(Bob.class, Bob.class.getClassLoader());
+            with(binder()).bind(Bob.class, Bob.class.getClassLoader());
         }
     }
 }

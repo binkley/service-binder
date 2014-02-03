@@ -61,20 +61,20 @@ public final class ServiceBinder<E extends Exception> {
     private static final Charset UTF8 = Charset.forName("UTF-8");
     private static final Pattern COMMENT = Pattern.compile("#.*");
 
-    private final Bindings<E> bindings;
+    private final With<E> with;
 
-    private interface Bindings<E extends Exception> {
+    public interface With<E extends Exception> {
         <T> void bind(final Class<T> service, final Iterable<Class<? extends T>> implementation)
                 throws E;
     }
 
-    public static ServiceBinder<RuntimeException> on(@Nonnull final Binder binder) {
-        return new ServiceBinder<RuntimeException>(new GuiceBindings(binder));
+    public static ServiceBinder<RuntimeException> with(@Nonnull final Binder binder) {
+        return new ServiceBinder<RuntimeException>(new WithGuice(binder));
     }
 
-    public static ServiceBinder<ClassNotFoundException> on(
+    public static ServiceBinder<ClassNotFoundException> with(
             @Nonnull final BeanDefinitionRegistry registry) {
-        return new ServiceBinder<ClassNotFoundException>(new SpringBindings(registry));
+        return new ServiceBinder<ClassNotFoundException>(new WithSpring(registry));
     }
 
     public <T> void bind(@Nonnull final Class<T> service) {
@@ -89,8 +89,8 @@ public final class ServiceBinder<E extends Exception> {
             bind(service, classLoader, configs.nextElement());
     }
 
-    private ServiceBinder(final Bindings<E> bindings) {
-        this.bindings = bindings;
+    private ServiceBinder(final With<E> with) {
+        this.with = with;
     }
 
     private <T> void bind(final Class<T> service, final ClassLoader classLoader, final URL config) {
@@ -101,7 +101,7 @@ public final class ServiceBinder<E extends Exception> {
             while (null != (implementation = implementation(service, config, reader)))
                 if (!skip(implementation))
                     implementations.add(loadClass(service, classLoader, config, implementation));
-            bindings.bind(service, implementations);
+            with.bind(service, implementations);
         } catch (final Exception e) {
             fail(service, config, "Cannot bind implemntations", e);
         } finally {
@@ -177,11 +177,11 @@ public final class ServiceBinder<E extends Exception> {
         throw new ServiceBinderError(service, config + ": " + message, cause);
     }
 
-    private static class GuiceBindings
-            implements Bindings<RuntimeException> {
+    private static class WithGuice
+            implements With<RuntimeException> {
         private final Binder binder;
 
-        public GuiceBindings(final Binder binder) {
+        public WithGuice(final Binder binder) {
             this.binder = binder;
         }
 
@@ -194,11 +194,11 @@ public final class ServiceBinder<E extends Exception> {
         }
     }
 
-    private static class SpringBindings
-            implements Bindings<ClassNotFoundException> {
+    private static class WithSpring
+            implements With<ClassNotFoundException> {
         private final BeanDefinitionRegistry registry;
 
-        public SpringBindings(final BeanDefinitionRegistry registry) {
+        public WithSpring(final BeanDefinitionRegistry registry) {
             this.registry = registry;
         }
 

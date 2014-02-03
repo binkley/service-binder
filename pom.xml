@@ -1,7 +1,7 @@
 <!--
   ~ This is free and unencumbered software released into the public domain.
   ~
-  ~ Please see https://github.com/binkley/guice-loader/blob/master/LICENSE.md.
+  ~ Please see https://github.com/binkley/service-binder/blob/master/LICENSE.md.
   -->
 
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -17,11 +17,11 @@
     </parent>
 
     <groupId>hm.binkley</groupId>
-    <artifactId>guice-loader</artifactId>
+    <artifactId>service-binder</artifactId>
     <version>0.1-SNAPSHOT</version>
 
     <name>Service Binder</name>
-    <description>Guice parallel to the SDK ServiceLoader</description>
+    <description>Injection parallel to the SDK ServiceLoader</description>
     <url>http://binkley.blogspot.com</url>
 
     <licenses>
