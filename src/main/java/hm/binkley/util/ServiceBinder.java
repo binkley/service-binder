@@ -30,6 +30,7 @@ package hm.binkley.util;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
+import org.springframework.beans.factory.support.RootBeanDefinition;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -48,7 +49,7 @@ import static java.lang.Character.charCount;
 import static java.lang.Character.isWhitespace;
 import static java.lang.ClassLoader.getSystemClassLoader;
 import static java.lang.Thread.currentThread;
-import static org.springframework.beans.factory.support.BeanDefinitionReaderUtils.createBeanDefinition;
+import static org.springframework.beans.factory.support.AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR;
 
 /**
  * {@code Bindings} <b>needs documentation</b>.
@@ -207,9 +208,8 @@ public final class ServiceBinder<E extends Exception> {
                 final Iterable<Class<? extends T>> implementations)
                 throws ClassNotFoundException {
             for (final Class<? extends T> implementation : implementations)
-                registry.registerBeanDefinition(
-                        "_" + service.getName() + ":" + implementation.getName(),
-                        createBeanDefinition(null, service.getName(), null));
+                registry.registerBeanDefinition(implementation.getName(),
+                        new RootBeanDefinition(implementation, AUTOWIRE_CONSTRUCTOR, true));
         }
     }
 }

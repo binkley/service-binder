@@ -28,14 +28,23 @@
 package hm.binkley.util;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.TypeLiteral;
+import org.junit.Before;
 import org.junit.Test;
 import org.kohsuke.MetaInfServices;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.config.ConstructorArgumentValues;
+import org.springframework.beans.factory.support.GenericBeanDefinition;
+import org.springframework.context.support.GenericApplicationContext;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static com.google.inject.Guice.createInjector;
 import static com.google.inject.name.Names.named;
@@ -48,14 +57,17 @@ import static org.junit.Assert.assertThat;
  * {@code ServiceBinderTest} tests {@link ServiceBinder}.
  *
  * @author <a href="mailto:binkley@alumni.rice.edu">B. K. Oxley (binkley)</a>
- * @todo Needs documentation.
  */
-public class ServiceBinderTest {
+public final class ServiceBinderTest {
+    @Before
+    public void setUp() {
+        Logger.getLogger("org.springframework").setLevel(Level.WARNING);
+    }
+
     @Test
-    public void shouldBindServices() {
+    public void shouldBindServicesWithGuice() {
         final Set<Class<? extends Bob>> found = new HashSet<Class<? extends Bob>>();
-        for (final Bob bob : createInjector(new TestModule())
-                .getInstance(Key.get(new TypeLiteral<Set<Bob>>() {})))
+        for (final Bob bob : guice().getInstance(Key.get(new TypeLiteral<Set<Bob>>() {})))
             found.add(bob.getClass());
 
         final Set<Class<? extends Bob>> expected = new HashSet<Class<? extends Bob>>();
@@ -66,9 +78,26 @@ public class ServiceBinderTest {
     }
 
     @Test
-    public void shouldInjectServices() {
-        assertThat(createInjector(new TestModule()).getInstance(Nancy.class).test,
-                is(equalTo(this)));
+    public void shouldInjectServicesWithGuice() {
+        assertThat(guice().getInstance(Nancy.class).catName, is(equalTo("Felix")));
+    }
+
+    @Test
+    public void shouldBindServicesWithSpring() {
+        final Set<Class<? extends Bob>> found = new HashSet<Class<? extends Bob>>();
+        for (final Bob bob : spring().getBeansOfType(Bob.class).values())
+            found.add(bob.getClass());
+
+        final Set<Class<? extends Bob>> expected = new HashSet<Class<? extends Bob>>();
+        expected.add(Fred.class);
+        expected.add(Nancy.class);
+
+        assertThat(found, is(equalTo(expected)));
+    }
+
+    @Test
+    public void shouldInjectServicesWithSpring() {
+        assertThat(spring().getBean(Nancy.class).catName, is(equalTo("Felix")));
     }
 
     public interface Bob {}
@@ -80,21 +109,37 @@ public class ServiceBinderTest {
     @MetaInfServices
     public static final class Nancy
             implements Bob {
-        private final ServiceBinderTest test;
+        private final String catName;
 
         @Inject
-        public Nancy(final ServiceBinderTest test) {
-            this.test = test;
+        public Nancy(@Named("cat-name") @Value("${cat-name}") final String catName) {
+            this.catName = catName;
         }
     }
 
-    public final class TestModule
+    public static final class TestModule
             extends AbstractModule {
         @Override
         protected void configure() {
             bindConstant().annotatedWith(named("cat-name")).to("Felix");
-            bind(ServiceBinderTest.class).toInstance(ServiceBinderTest.this);
-            with(binder()).bind(Bob.class, Bob.class.getClassLoader());
+            with(binder()).bind(Bob.class);
         }
+    }
+
+    private static Injector guice() {
+        return createInjector(new TestModule());
+    }
+
+    private static GenericApplicationContext spring() {
+        final GenericApplicationContext context = new GenericApplicationContext();
+        final GenericBeanDefinition catName = new GenericBeanDefinition();
+        catName.setBeanClass(String.class);
+        final ConstructorArgumentValues value = new ConstructorArgumentValues();
+        value.addGenericArgumentValue("Felix");
+        catName.setConstructorArgumentValues(value);
+        context.registerBeanDefinition("cat-name", catName);
+        with(context).bind(Bob.class);
+        context.refresh();
+        return context;
     }
 }
