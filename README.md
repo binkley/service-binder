@@ -41,7 +41,7 @@ public final class SampleModule
     @Override
     protected void configure() {
         bindConstant().annotatedWith(named("cat-name")).to("Felix");
-        with(binder()).bind(Bob.class, Bob.class.getClassLoader());
+        with(binder()).bind(Bob.class);
     }
 }
 ```

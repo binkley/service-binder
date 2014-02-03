@@ -94,7 +94,7 @@ public class ServiceBinderTest {
         protected void configure() {
             bindConstant().annotatedWith(named("cat-name")).to("Felix");
             bind(ServiceBinderTest.class).toInstance(ServiceBinderTest.this);
-            with(binder()).bind(Bob.class, Bob.class.getClassLoader());
+            with(binder()).bind(Bob.class);
         }
     }
 }
