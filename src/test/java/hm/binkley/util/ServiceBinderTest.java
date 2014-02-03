@@ -33,12 +33,13 @@ import com.google.inject.TypeLiteral;
 import org.junit.Test;
 import org.kohsuke.MetaInfServices;
 
+import javax.inject.Inject;
+import java.util.HashSet;
 import java.util.Set;
 
 import static com.google.inject.Guice.createInjector;
 import static hm.binkley.util.ServiceBinder.on;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -50,11 +51,22 @@ import static org.junit.Assert.assertThat;
  */
 public class ServiceBinderTest {
     @Test
-    public void shouldFindFredAsABob() {
-        final Set<Bob> bobs = createInjector(new TestModule())
-                .getInstance(Key.get(new TypeLiteral<Set<Bob>>() {}));
-        assertThat(bobs, hasSize(1));
-        assertThat(bobs.iterator().next(), is(instanceOf(Fred.class)));
+    public void shouldBindServices() {
+        final Set<Class<? extends Bob>> found = new HashSet<Class<? extends Bob>>();
+        for (final Bob bob : createInjector(new TestModule())
+                .getInstance(Key.get(new TypeLiteral<Set<Bob>>() {})))
+            found.add(bob.getClass());
+        final Set<Class<? extends Bob>> expected = new HashSet<Class<? extends Bob>>();
+        expected.add(Fred.class);
+        expected.add(Nancy.class);
+
+        assertThat(found, is(equalTo(expected)));
+    }
+
+    @Test
+    public void shouldInjectServices() {
+        assertThat(createInjector(new TestModule()).getInstance(Nancy.class).test,
+                is(equalTo(this)));
     }
 
     public interface Bob {}
@@ -63,10 +75,22 @@ public class ServiceBinderTest {
     public static final class Fred
             implements Bob {}
 
-    public static final class TestModule
+    @MetaInfServices(Bob.class)
+    public static final class Nancy
+            implements Bob {
+        private final ServiceBinderTest test;
+
+        @Inject
+        public Nancy(final ServiceBinderTest test) {
+            this.test = test;
+        }
+    }
+
+    public final class TestModule
             extends AbstractModule {
         @Override
         protected void configure() {
+            bind(ServiceBinderTest.class).toInstance(ServiceBinderTest.this);
             on(binder()).bind(Bob.class, Bob.class.getClassLoader());
         }
     }
