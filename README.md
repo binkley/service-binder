@@ -9,10 +9,28 @@ It comes in two flavors:
 * Guice
 * Spring Framework
 
+# Motivation
+
+Using `ServiceLoader` to find modules to install into Guice is straight-forward:
+
+```
+@Override
+protected void configure() {
+    for (final Module : ServiceLoader.load(Module.class))
+        install(module);
+}
+```
+
+However this does not provide modules with injection.  Spring Framework handles this better.
+
+Using `ServiceBinder` provides the same discovery mechanism and provides injection.  It is not
+limited to modules.
+
 # Pick an injector
 
-Use `ServiceBinder.with(Binder)` for Guice or `ServiceBinder.with(BeanDefinitionRegistry)` for
-Spring Framework.  These return an `With` implementation specific to your choice.
+Use [`ServiceBinder.with(Binder)`](src/main/java/hm/binkley/util/ServiceBinder.java) for Guice
+or `ServiceBinder.with(BeanDefinitionRegistry)` for Spring Framework.  These return an `With`
+implementation specific to your choice.
 
 # Bind services
 
@@ -32,8 +50,7 @@ public static final class Fred
 public static final class Nancy
         implements Bob {
     @Inject
-    public Nancy(@Named("cat-name") final String catName) {
-    }
+    public Nancy(@Named("cat-name") final String catName) {}
 }
 
 public final class SampleModule
