@@ -18,7 +18,7 @@
 
     <groupId>hm.binkley</groupId>
     <artifactId>service-binder</artifactId>
-    <version>0.1-SNAPSHOT</version>
+    <version>0.1</version>
 
     <name>Service Binder</name>
     <description>Injection parallel to the SDK ServiceLoader</description>
