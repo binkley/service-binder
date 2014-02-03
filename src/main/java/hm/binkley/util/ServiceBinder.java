@@ -57,7 +57,7 @@ import static org.springframework.beans.factory.support.BeanDefinitionReaderUtil
  * @todo Needs documentation.
  */
 public final class ServiceBinder<E extends Exception> {
-    private static final String PREFIX = "/META-INF/services/";
+    private static final String PREFIX = "META-INF/services/";
     private static final Charset UTF8 = Charset.forName("UTF-8");
     private static final Pattern COMMENT = Pattern.compile("#.*");
 
