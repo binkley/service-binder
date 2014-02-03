@@ -29,6 +29,7 @@ package hm.binkley.util;
 
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -37,7 +38,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
@@ -45,6 +48,7 @@ import static java.lang.Character.charCount;
 import static java.lang.Character.isWhitespace;
 import static java.lang.ClassLoader.getSystemClassLoader;
 import static java.lang.Thread.currentThread;
+import static org.springframework.beans.factory.support.BeanDefinitionReaderUtils.createBeanDefinition;
 
 /**
  * {@code Bindings} <b>needs documentation</b>.
@@ -52,41 +56,59 @@ import static java.lang.Thread.currentThread;
  * @author <a href="mailto:binkley@alumni.rice.edu">B. K. Oxley (binkley)</a>
  * @todo Needs documentation.
  */
-public final class ServiceBinder {
-    private static final String PREFIX = "/META-INF/bindings/";
+public final class ServiceBinder<E extends Exception> {
+    private static final String PREFIX = "/META-INF/services/";
     private static final Charset UTF8 = Charset.forName("UTF-8");
     private static final Pattern COMMENT = Pattern.compile("#.*");
 
-    public static <T> Multibinder<T> bind(@Nonnull final Binder binder,
-            @Nonnull final Class<T> service) {
-        return bind(binder, service, currentThread().getContextClassLoader());
+    private final Bindings<E> bindings;
+
+    private interface Bindings<E extends Exception> {
+        <T> void bind(final Class<T> service, final Iterable<Class<? extends T>> implementation)
+                throws E;
     }
 
-    public static <T> Multibinder<T> bind(@Nonnull final Binder binder,
-            @Nonnull final Class<T> service, @Nullable ClassLoader classLoader) {
+    public static ServiceBinder<RuntimeException> on(@Nonnull final Binder binder) {
+        return new ServiceBinder<RuntimeException>(new GuiceBindings(binder));
+    }
+
+    public static ServiceBinder<ClassNotFoundException> on(
+            @Nonnull final BeanDefinitionRegistry registry) {
+        return new ServiceBinder<ClassNotFoundException>(new SpringBindings(registry));
+    }
+
+    public <T> void bind(@Nonnull final Class<T> service) {
+        bind(service, currentThread().getContextClassLoader());
+    }
+
+    public <T> void bind(@Nonnull final Class<T> service, @Nullable ClassLoader classLoader) {
         if (null == classLoader)
             classLoader = getSystemClassLoader();
-        final Multibinder<T> bindings = newSetBinder(binder, service);
         final Enumeration<URL> configs = configs(service, classLoader);
         while (configs.hasMoreElements())
-            bind(bindings, service, classLoader, configs.nextElement());
-        return bindings;
+            bind(service, classLoader, configs.nextElement());
     }
 
-    private static <T> void bind(final Multibinder<T> bindings, final Class<T> service,
-            final ClassLoader classLoader, final URL config) {
+    private ServiceBinder(final Bindings<E> bindings) {
+        this.bindings = bindings;
+    }
+
+    private <T> void bind(final Class<T> service, final ClassLoader classLoader, final URL config) {
         final BufferedReader reader = config(service, config);
         try {
+            final List<Class<? extends T>> implementations = new ArrayList<Class<? extends T>>();
             String implementation;
             while (null != (implementation = implementation(service, config, reader)))
                 if (!skip(implementation))
-                    bindings.addBinding()
-                            .to(loadClass(service, classLoader, config, implementation));
+                    implementations.add(loadClass(service, classLoader, config, implementation));
+            bindings.bind(service, implementations);
+        } catch (final Exception e) {
+            fail(service, config, "Cannot bind implemntations", e);
         } finally {
             try {
                 reader.close();
             } catch (final IOException e) {
-                fail(service, config + ": Cannot close", e);
+                fail(service, config, "Cannot close", e);
             }
         }
     }
@@ -97,11 +119,11 @@ public final class ServiceBinder {
         try {
             return (Class<? extends T>) classLoader.loadClass(className);
         } catch (final ClassNotFoundException e) {
-            return fail(service, config + ": Cannot bind implementation for " + className, e);
+            return fail(service, config, "Cannot bind implementation for " + className, e);
         }
     }
 
-    private static String implementation(final Class<?> service, final URL config,
+    private static <T> String implementation(final Class<T> service, final URL config,
             final BufferedReader reader) {
         try {
             final String line = reader.readLine();
@@ -110,15 +132,15 @@ public final class ServiceBinder {
             else
                 return COMMENT.matcher(line).replaceFirst("").trim();
         } catch (final IOException e) {
-            return fail(service, config + ": Cannot read service configuration", e);
+            return fail(service, config, "Cannot read service configuration", e);
         }
     }
 
-    private static BufferedReader config(final Class<?> service, final URL config) {
+    private static <T> BufferedReader config(final Class<T> service, final URL config) {
         try {
             return new BufferedReader(new InputStreamReader(config.openStream(), UTF8));
         } catch (final IOException e) {
-            return fail(service, config + ": Cannot read service configuration", e);
+            return fail(service, config, "Cannot read service configuration", e);
         }
     }
 
@@ -148,5 +170,46 @@ public final class ServiceBinder {
 
     private static <R> R fail(final Class<?> service, final String message, final Exception cause) {
         throw new ServiceBinderError(service, message, cause);
+    }
+
+    private static <R> R fail(final Class<?> service, final URL config, final String message,
+            final Exception cause) {
+        throw new ServiceBinderError(service, config + ": " + message, cause);
+    }
+
+    private static class GuiceBindings
+            implements Bindings<RuntimeException> {
+        private final Binder binder;
+
+        public GuiceBindings(final Binder binder) {
+            this.binder = binder;
+        }
+
+        @Override
+        public <T> void bind(final Class<T> service,
+                final Iterable<Class<? extends T>> implementations) {
+            final Multibinder<T> bindings = newSetBinder(binder, service);
+            for (final Class<? extends T> implementation : implementations)
+                bindings.addBinding().to(implementation);
+        }
+    }
+
+    private static class SpringBindings
+            implements Bindings<ClassNotFoundException> {
+        private final BeanDefinitionRegistry registry;
+
+        public SpringBindings(final BeanDefinitionRegistry registry) {
+            this.registry = registry;
+        }
+
+        @Override
+        public <T> void bind(final Class<T> service,
+                final Iterable<Class<? extends T>> implementations)
+                throws ClassNotFoundException {
+            for (final Class<? extends T> implementation : implementations)
+                registry.registerBeanDefinition(
+                        "_" + service.getName() + ":" + implementation.getName(),
+                        createBeanDefinition(null, service.getName(), null));
+        }
     }
 }

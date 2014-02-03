@@ -27,43 +27,47 @@
 
 package hm.binkley.util;
 
+import com.google.inject.AbstractModule;
+import com.google.inject.Key;
+import com.google.inject.TypeLiteral;
 import org.junit.Test;
+import org.kohsuke.MetaInfServices;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.util.Set;
 
-import static java.lang.String.format;
-import static org.junit.Assert.fail;
+import static com.google.inject.Guice.createInjector;
+import static hm.binkley.util.ServiceBinder.on;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 
 /**
- * {@code MetaInfBindingsAnnotationProcessorTest} tests {@link MetaInfBindingsAnnotationProcessor}.
+ * {@code ServiceBinderTest} tests {@link ServiceBinder}.
  *
  * @author <a href="mailto:binkley@alumni.rice.edu">B. K. Oxley (binkley)</a>
  * @todo Needs documentation.
  */
-public class MetaInfBindingsAnnotationProcessorTest {
+public class ServiceBinderTest {
     @Test
-    public void shouldFindFredInMetaInfBindings()
-            throws IOException {
-        final BufferedReader next = new BufferedReader(new InputStreamReader(
-                getClass().getResource("/META-INF/bindings/" + Bob.class.getName()).openStream()));
-        try {
-            String line;
-            while (null != (line = next.readLine()))
-                if (Fred.class.getName().equals(line))
-                    return;
-        } finally {
-            next.close();
-        }
-
-        fail(format("Did not find %s in /META-INF/bindings/%s", Fred.class.getName(),
-                Bob.class.getName()));
+    public void shouldFindFredAsABob() {
+        final Set<Bob> bobs = createInjector(new TestModule())
+                .getInstance(Key.get(new TypeLiteral<Set<Bob>>() {}));
+        assertThat(bobs, hasSize(1));
+        assertThat(bobs.iterator().next(), is(instanceOf(Fred.class)));
     }
 
     public interface Bob {}
 
-    @MetaInfBindings(Bob.class)
+    @MetaInfServices(Bob.class)
     public static final class Fred
             implements Bob {}
+
+    public static final class TestModule
+            extends AbstractModule {
+        @Override
+        protected void configure() {
+            on(binder()).bind(Bob.class, Bob.class.getClassLoader());
+        }
+    }
 }
