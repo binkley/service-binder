@@ -42,6 +42,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.ServiceConfigurationError;
 import java.util.regex.Pattern;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
@@ -170,12 +171,13 @@ public final class ServiceBinder<E extends Exception> {
     }
 
     private static <R> R fail(final Class<?> service, final String message, final Exception cause) {
-        throw new ServiceBinderError(service, message, cause);
+        throw new ServiceConfigurationError(service.getName() + ": " + message, cause);
     }
 
     private static <R> R fail(final Class<?> service, final URL config, final String message,
             final Exception cause) {
-        throw new ServiceBinderError(service, config + ": " + message, cause);
+        throw new ServiceConfigurationError(service.getName() + ": " + config + ": " + message,
+                cause);
     }
 
     private static class WithGuice
