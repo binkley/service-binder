@@ -1,7 +1,7 @@
 <!--
   ~ This is free and unencumbered software released into the public domain.
   ~
-  ~ Please see https://github.com/binkley/binkley/blob/master/LICENSE.md.
+  ~ Please see https://github.com/binkley/service-binder/blob/master/LICENSE.md.
   -->
 
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -16,17 +16,12 @@
         <version>7</version>
     </parent>
 
-    <prerequisites>
-        <maven>${maven.version}</maven>
-    </prerequisites>
-
     <groupId>hm.binkley</groupId>
-    <artifactId>guice-loader</artifactId>
-    <version>0.1-SNAPSHOT</version>
-    <packaging>pom</packaging>
+    <artifactId>service-binder</artifactId>
+    <version>0.1</version>
 
-    <name>Guice Loader</name>
-    <description>Guice parallel to the SDK ServiceLoader</description>
+    <name>Service Binder</name>
+    <description>Injection parallel to the SDK ServiceLoader</description>
     <url>http://binkley.blogspot.com</url>
 
     <licenses>
@@ -38,9 +33,10 @@
     </licenses>
 
     <scm>
-        <connection>scm:git:git://github.com/binkley/guice-loader.git</connection>
-        <developerConnection>scm:git:git@github.com:binkley/guice-loader.git</developerConnection>
-        <url>https://github.com/binkley/guice-loader</url>
+        <connection>scm:git:git://github.com/binkley/${project.artifactId}.git</connection>
+        <developerConnection>scm:git:git@github.com:binkley/${project.artifactId}.git
+        </developerConnection>
+        <url>https://github.com/binkley/${project.artifactId}</url>
     </scm>
 
     <developers>
@@ -56,19 +52,11 @@
         </developer>
     </developers>
 
-<!-- TODO: Create children
-    <modules>
-        <module>guice-loader</module>
-        <module>guice-loader-annotation</module>
-        <module>guice-loader-maven-plugin</module>
-    </modules>
--->
-
     <properties>
+        <animal-sniffer-maven-plugin.version>1.9</animal-sniffer-maven-plugin.version>
         <guice.version>3.0</guice.version>
         <hamcrest.version>1.3</hamcrest.version>
-        <!-- Tracks Guice Java version -->
-        <java.version>1.5</java.version>
+        <java.version>6</java.version>
         <jsr305.version>2.0.3</jsr305.version>
         <junit.version>4.11</junit.version>
         <maven-clean-plugin.version>2.5</maven-clean-plugin.version>
@@ -80,10 +68,12 @@
         <maven-jgitflow-plugin.version>1.0-alpha21.1</maven-jgitflow-plugin.version>
         <maven-release-plugin.version>2.4.1</maven-release-plugin.version>
         <maven-source-plugin.version>2.2.1</maven-source-plugin.version>
+        <metainf-services.version>1.5</metainf-services.version>
         <owner.version>1.0.5</owner.version>
         <project.build.outputEncoding>UTF-8</project.build.outputEncoding>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <spring.version>4.0.1.RELEASE</spring.version>
         <versions-maven-plugin.version>2.1</versions-maven-plugin.version>
     </properties>
 
@@ -93,6 +83,33 @@
             <artifactId>jsr305</artifactId>
             <version>${jsr305.version}</version>
             <scope>compile</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.kohsuke.metainf-services</groupId>
+            <artifactId>metainf-services</artifactId>
+            <version>${metainf-services.version}</version>
+            <scope>compile</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.inject</groupId>
+            <artifactId>guice</artifactId>
+            <version>${guice.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.google.inject.extensions</groupId>
+            <artifactId>guice-multibindings</artifactId>
+            <version>${guice.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>${spring.version}</version>
             <optional>true</optional>
         </dependency>
 
@@ -109,32 +126,6 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>binkley-loader</artifactId>
-                <version>${project.version</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>binkley-loader-annotation</artifactId>
-                <version>${project.version</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>binkley-loader-maven-plugin</artifactId>
-                <version>${project.version</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.google.inject</groupId>
-                <artifactId>guice</artifactId>
-                <version>${guice.version}</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
     <build>
         <plugins>
@@ -161,9 +152,37 @@
                 <version>${maven-compiler-plugin.version}</version>
                 <configuration>
                     <debug>true</debug>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
+                    <source>1.${java.version}</source>
+                    <target>1.${java.version}</target>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>animal-sniffer-maven-plugin</artifactId>
+                <version>${animal-sniffer-maven-plugin.version}</version>
+                <configuration>
+                    <signature>
+                        <groupId>org.codehaus.mojo.signature</groupId>
+                        <artifactId>java1${java.version}</artifactId>
+                        <version>1.0</version>
+                    </signature>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>check-signature</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                    <!--
+                                            <execution>
+                                                <id>check-test-signature</id>
+                                                <goals>
+                                                    <goal>test-check</goal>
+                                                </goals>
+                                            </execution>
+                    -->
+                </executions>
             </plugin>
             <plugin>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -211,8 +230,7 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>${maven-javadoc-plugin.version}</version>
                 <configuration>
-                    <!-- TODO: JD8 chokes on xnum -->
-                    <additionalparam>-Xdoclint:none</additionalparam>
+                    <additionalparam>${disable-doclint}</additionalparam>
                     <archive>
                         <addMavenDescriptor>true</addMavenDescriptor>
                         <compress>true</compress>
@@ -228,10 +246,6 @@
                     <links>
                         <!-- TODO: These guys need complex URLs which javadoc does not grok -->
                         <!--<link>http://google-guice.googlecode.com/git/javadoc/</link>-->
-                        <!--<link>http://docs.guava-libraries.googlecode.com/git/javadoc/</link>-->
-                        <link>http://owner.newinstance.it/${owner.version}/apidocs/</link>
-                        <link>http://slf4j.org/api/</link>
-                        <link>http://pholser.github.io/jopt-simple/apidocs/</link>
                         <link>http://findbugs.sourceforge.net/api/</link>
                     </links>
                     <tags>
@@ -276,5 +290,50 @@
                 </configuration>
             </plugin>
         </plugins>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven-compiler-plugin.version}</version>
+                    <configuration>
+                        <debug>true</debug>
+                        <source>1.${java.version}</source>
+                        <target>1.${java.version}</target>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>animal-sniffer-maven-plugin</artifactId>
+                    <version>${animal-sniffer-maven-plugin.version}</version>
+                    <configuration>
+                        <signature>
+                            <groupId>org.codehaus.mojo.signature</groupId>
+                            <artifactId>java1${java.version}</artifactId>
+                            <version>1.0</version>
+                        </signature>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>check-signature</id>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
     </build>
+    <profiles>
+        <profile>
+            <!-- TODO: Workaround for JDK8 - avoid javadoc bug on HTML kbd tag -->
+            <id>javadoc-8-broken</id>
+            <activation>
+                <jdk>1.8</jdk>
+            </activation>
+            <properties>
+                <disable-doclint>-Xdoclint:none</disable-doclint>
+            </properties>
+        </profile>
+    </profiles>
 </project>
