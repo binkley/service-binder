@@ -35,8 +35,9 @@ implementation specific to your choice.
 
 # Bind services
 
-Use `With.bind(Class)` or `With.bind(Class, ClassLoader)`.  If not provided `bind()` uses the
-thread-context class loader.
+Use [`With.bind(Class)`](src/main/java/hm/binkley/util/ServiceBinder.java#L82) or
+[`With.bind(Class, ClassLoader)`](src/main/java/hm/binkley/util/ServiceBinder.java#L82).  If
+not provided `bind()` uses the thread-context class loader.
 
 # Examples
 
