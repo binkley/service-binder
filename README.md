@@ -28,8 +28,9 @@ limited to modules.
 
 # Pick an injector
 
-Use [`ServiceBinder.with(Binder)`](src/main/java/hm/binkley/util/ServiceBinder.java) for Guice
-or `ServiceBinder.with(BeanDefinitionRegistry)` for Spring Framework.  These return an `With`
+Use [`ServiceBinder.with(Binder)`](src/main/java/hm/binkley/util/ServiceBinder.java#L73) for Guice
+or [`ServiceBinder.with(BeanDefinitionRegistry)`]
+(src/main/java/hm/binkley/util/ServiceBinder.java#L77) for Spring Framework.  These return an `With`
 implementation specific to your choice.
 
 # Bind services
@@ -37,7 +38,9 @@ implementation specific to your choice.
 Use `With.bind(Class)` or `With.bind(Class, ClassLoader)`.  If not provided `bind()` uses the
 thread-context class loader.
 
-# Guice example
+# Examples
+
+Examples assume these services:
 
 ```java
 public interface Bob {}
@@ -52,18 +55,39 @@ public static final class Nancy
     @Inject
     public Nancy(@Named("cat-name") final String catName) {}
 }
+```
 
+## Guice example
+
+```java
 public final class SampleModule
         extends AbstractModule {
     @Override
     protected void configure() {
         bindConstant().annotatedWith(named("cat-name")).to("Felix");
-        with(binder()).bind(Bob.class);
+        ServiceBinder.with(binder()).bind(Bob.class);
     }
 }
+```
+
+## Spring example
+
+```java
+final GenericApplicationContext context = new GenericApplicationContext();
+final GenericBeanDefinition catName = new GenericBeanDefinition();
+catName.setBeanClass(String.class);
+final ConstructorArgumentValues value = new ConstructorArgumentValues();
+value.addGenericArgumentValue("Felix");
+catName.setConstructorArgumentValues(value);
+context.registerBeanDefinition("cat-name", catName);
+ServiceBinder.with(context).bind(Bob.class);
 ```
 
 # Extras
 
 You may find Kohsuke's [META-INF/services generator](https://github.com/binkley/service-binder)
 useful to annotate your service implementations: it generates the META-INF services file for you.
+
+When using the maven shade plugin you may also find [the services transformer]
+(https://maven.apache.org/plugins/maven-shade-plugin/examples/resource-transformers.html#ServicesResourceTransformer)
+useful to merge `META-INF/services` files.
