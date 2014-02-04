@@ -55,6 +55,9 @@ import static org.springframework.beans.factory.support.AbstractBeanDefinition.A
 /**
  * {@code Bindings} <b>needs documentation</b>.
  *
+ * @param <E> the exception type thrown by {@link #bind(Class)} or {@link #bind(Class,
+ * ClassLoader)}
+ *
  * @author <a href="mailto:binkley@alumni.rice.edu">B. K. Oxley (binkley)</a>
  * @todo Needs documentation.
  */
@@ -65,45 +68,72 @@ public final class ServiceBinder<E extends Exception> {
 
     private final With<E> with;
 
-    public interface With<E extends Exception> {
+    private interface With<E extends Exception> {
         <T> void bind(final Class<T> service, final Iterable<Class<? extends T>> implementation)
                 throws E;
     }
 
+    /**
+     * Creates a service binder for Guice.
+     *
+     * @param binder the Guice binder, never missing
+     *
+     * @return the service binder, never missing
+     */
+    @Nonnull
     public static ServiceBinder<RuntimeException> with(@Nonnull final Binder binder) {
         return new ServiceBinder<RuntimeException>(new WithGuice(binder));
     }
 
+    /**
+     * Creates a service binder for Spring Framkwork.
+     *
+     * @param registry the Spring bean definition registry, never missing
+     *
+     * @return the service binder, never missing
+     */
+    @Nonnull
     public static ServiceBinder<ClassNotFoundException> with(
             @Nonnull final BeanDefinitionRegistry registry) {
         return new ServiceBinder<ClassNotFoundException>(new WithSpring(registry));
     }
 
+    /**
+     * Binds injected instances of the <var>service</var> type token to the binding instance using
+     * the system class loader.
+     *
+     * @param service the service type token, never missing
+     * @param <T> the service type
+     */
     public <T> void bind(@Nonnull final Class<T> service) {
         bind(service, currentThread().getContextClassLoader());
     }
 
+    /**
+     * Binds injected instances of the <var>service</var> type tokento the binding instance using
+     * the given <var>classLoader</var>, or the system class loader if {@code null}.
+     *
+     * @param service the service type token, never missing
+     * @param classLoader the classloader, if {@code null} the system class loader
+     * @param <T> the service type
+     */
     public <T> void bind(@Nonnull final Class<T> service, @Nullable ClassLoader classLoader) {
         if (null == classLoader)
             classLoader = getSystemClassLoader();
         final Enumeration<URL> configs = configs(service, classLoader);
         while (configs.hasMoreElements())
-            bind(service, classLoader, configs.nextElement());
+            bind(service, classLoader, configs.nextElement(), with);
     }
 
     private ServiceBinder(final With<E> with) {
         this.with = with;
     }
 
-    private <T> void bind(final Class<T> service, final ClassLoader classLoader, final URL config) {
+    private static <T, E extends Exception> void bind(final Class<T> service,
+            final ClassLoader classLoader, final URL config, final With<E> with) {
         final BufferedReader reader = config(service, config);
         try {
-            final List<Class<? extends T>> implementations = new ArrayList<Class<? extends T>>();
-            String implementation;
-            while (null != (implementation = implementation(service, config, reader)))
-                if (!skip(implementation))
-                    implementations.add(loadClass(service, classLoader, config, implementation));
-            with.bind(service, implementations);
+            with.bind(service, implementations(service, classLoader, config, reader));
         } catch (final Exception e) {
             fail(service, config, "Cannot bind implemntations", e);
         } finally {
@@ -113,6 +143,16 @@ public final class ServiceBinder<E extends Exception> {
                 fail(service, config, "Cannot close", e);
             }
         }
+    }
+
+    private static <T> List<Class<? extends T>> implementations(final Class<T> service,
+            final ClassLoader classLoader, final URL config, final BufferedReader reader) {
+        final List<Class<? extends T>> implementations = new ArrayList<Class<? extends T>>();
+        String implementation;
+        while (null != (implementation = implementation(service, config, reader)))
+            if (!skip(implementation))
+                implementations.add(loadClass(service, classLoader, config, implementation));
+        return implementations;
     }
 
     @SuppressWarnings("unchecked")
