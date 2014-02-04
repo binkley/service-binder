@@ -27,13 +27,19 @@
 
 package hm.binkley.util;
 
+import com.google.inject.AbstractModule;
 import com.google.inject.Binder;
+import com.google.inject.Injector;
+import com.google.inject.Key;
+import com.google.inject.Module;
+import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.inject.Inject;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -43,6 +49,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.ServiceConfigurationError;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
@@ -50,7 +57,7 @@ import static java.lang.Character.charCount;
 import static java.lang.Character.isWhitespace;
 import static java.lang.ClassLoader.getSystemClassLoader;
 import static java.lang.Thread.currentThread;
-import static org.springframework.beans.factory.support.AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR;
+import static org.springframework.beans.factory.config.AutowireCapableBeanFactory.AUTOWIRE_CONSTRUCTOR;
 
 /**
  * {@code Bindings} <b>needs documentation</b>.
@@ -253,6 +260,31 @@ public final class ServiceBinder<E extends Exception> {
             for (final Class<? extends T> implementation : implementations)
                 registry.registerBeanDefinition(implementation.getName(),
                         new RootBeanDefinition(implementation, AUTOWIRE_CONSTRUCTOR, true));
+        }
+    }
+
+    public static final class ServiceBinderParentModule
+            extends AbstractModule {
+        @Override
+        protected void configure() {
+            with(binder()).bind(Module.class);
+        }
+    }
+
+    public static final class ServiceBinderChildModule
+            extends AbstractModule {
+        private final Injector guice;
+
+        @Inject
+        public ServiceBinderChildModule(@Nonnull final Injector guice) {
+            this.guice = guice;
+        }
+
+        @Override
+        protected void configure() {
+            for (final Module module : guice
+                    .getInstance(Key.get(new TypeLiteral<Set<Module>>() {})))
+                install(module);
         }
     }
 }
