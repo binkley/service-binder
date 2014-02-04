@@ -68,13 +68,8 @@ public final class ServiceBinder<E extends Exception> {
 
     private final With<E> with;
 
-    private interface With<E extends Exception> {
-        <T> void bind(final Class<T> service, final Iterable<Class<? extends T>> implementation)
-                throws E;
-    }
-
     /**
-     * Creates a service binder for Guice.
+     * Creates a service binder for Guice with the given <var>binder</var>.
      *
      * @param binder the Guice binder, never missing
      *
@@ -86,7 +81,8 @@ public final class ServiceBinder<E extends Exception> {
     }
 
     /**
-     * Creates a service binder for Spring Framkwork.
+     * Creates a service binder for Spring Framkwork with the given bean definition
+     * <var>registry</var>.
      *
      * @param registry the Spring bean definition registry, never missing
      *
@@ -218,6 +214,11 @@ public final class ServiceBinder<E extends Exception> {
             final Exception cause) {
         throw new ServiceConfigurationError(service.getName() + ": " + config + ": " + message,
                 cause);
+    }
+
+    private interface With<E extends Exception> {
+        <T> void bind(final Class<T> service, final Iterable<Class<? extends T>> implementation)
+                throws E;
     }
 
     private static class WithGuice
