@@ -34,7 +34,6 @@ import com.google.inject.TypeLiteral;
 import org.junit.Before;
 import org.junit.Test;
 import org.kohsuke.MetaInfServices;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.ConstructorArgumentValues;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
 import org.springframework.context.support.GenericApplicationContext;
@@ -112,7 +111,7 @@ public final class ServiceBinderTest {
         private final String catName;
 
         @Inject
-        public Nancy(@Named("cat-name") @Value("${cat-name}") final String catName) {
+        public Nancy(@Named("cat-name") final String catName) {
             this.catName = catName;
         }
     }
