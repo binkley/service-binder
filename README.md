@@ -76,14 +76,20 @@ public final class SampleModule
 ## Spring example
 
 ```java
-final GenericApplicationContext context = new GenericApplicationContext();
-final GenericBeanDefinition catName = new GenericBeanDefinition();
-catName.setBeanClass(String.class);
-final ConstructorArgumentValues value = new ConstructorArgumentValues();
-value.addGenericArgumentValue("Felix");
-catName.setConstructorArgumentValues(value);
-context.registerBeanDefinition("cat-name", catName);
+@Configuration
+public static class AppConfig {
+    @Bean(name = "cat-name")
+    public String catName() {
+        return "Felix";
+    }
+}
+```
+
+```java
+AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
+context.register(AppConfig.class);
 ServiceBinder.with(context).bind(Bob.class);
+context.refresh();
 ```
 
 # Extras
