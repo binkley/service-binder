@@ -11,6 +11,8 @@ It comes in two flavors:
 
 # Motivation
 
+_This section needs revision in light of non-support in Guice 3.0 of injecting modules._
+
 Using `ServiceLoader` to find modules to install into Guice is straight-forward:
 
 ```
