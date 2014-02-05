@@ -29,6 +29,7 @@ package hm.binkley.util;
 
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
+import org.springframework.beans.factory.serviceloader.ServiceLoaderFactoryBean;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 
@@ -87,6 +88,8 @@ public final class ServiceBinder<E extends Exception> {
      * @param registry the Spring bean definition registry, never missing
      *
      * @return the service binder, never missing
+     *
+     * @see ServiceLoaderFactoryBean
      */
     @Nonnull
     public static ServiceBinder<ClassNotFoundException> with(
