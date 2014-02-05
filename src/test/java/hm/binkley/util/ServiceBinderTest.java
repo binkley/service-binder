@@ -95,7 +95,7 @@ public final class ServiceBinderTest {
         assertThat(directGuice().getInstance(Nancy.class).nickName, is(equalTo("Fancy")));
     }
 
-    @Ignore("Guice cannot bind Module")
+//    @Ignore("Guice cannot bind Module")
     @Test
     public void shouldBindServicesWithInjectedGuice() {
         final Set<Class<? extends Bob>> found = new HashSet<Class<? extends Bob>>();
@@ -109,19 +109,19 @@ public final class ServiceBinderTest {
         assertThat(found, is(equalTo(expected)));
     }
 
-    @Ignore("Guice cannot bind Module")
+//    @Ignore("Guice cannot bind Module")
     @Test
     public void shouldConstructorInjectServicesWithInjectedGuice() {
         assertThat(injectedGuice().getInstance(Nancy.class).catName, is(equalTo("Felix")));
     }
 
-    @Ignore("Guice cannot bind Module")
+//    @Ignore("Guice cannot bind Module")
     @Test
     public void shouldMethodInjectServicesWithInjectedGuice() {
         assertThat(injectedGuice().getInstance(Nancy.class).favoriteColor, is(equalTo("White")));
     }
 
-    @Ignore("Guice cannot bind Module")
+//    @Ignore("Guice cannot bind Module")
     @Test
     public void shouldFieldInjectServicesWithInjectedGuice() {
         assertThat(injectedGuice().getInstance(Nancy.class).nickName, is(equalTo("Fancy")));
