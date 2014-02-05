@@ -28,6 +28,7 @@
 package hm.binkley.util;
 
 import com.google.inject.Binder;
+import com.google.inject.Module;
 import com.google.inject.multibindings.Multibinder;
 import org.springframework.beans.factory.serviceloader.ServiceLoaderFactoryBean;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
@@ -44,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.ServiceConfigurationError;
+import java.util.ServiceLoader;
 import java.util.regex.Pattern;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
@@ -54,10 +56,16 @@ import static java.lang.Thread.currentThread;
 import static org.springframework.beans.factory.support.AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR;
 
 /**
- * {@code Bindings} <b>needs documentation</b>.
+ * {@code ServiceBinder} is {@link ServiceLoader} with injection.  Create a service binder for Guice
+ * using {@link #with(Binder)} or Spring Framework using {@link #with(BeanDefinitionRegistry)}. The
+ * service binder is reuseable.
+ * <p/>
+ * To discover and bind implementations of a service, use {@link #bind(Class)} or {@link
+ * #bind(Class, ClassLoader)}.
+ * <p/>
+ * All exeptions thrown internally appear as {@link ServiceConfigurationError}.
  *
- * @param <E> the exception type thrown by {@link #bind(Class)} or {@link #bind(Class,
- * ClassLoader)}
+ * @param <E> the exception type thrown internally, not visible outside declaration
  *
  * @author <a href="mailto:binkley@alumni.rice.edu">B. K. Oxley (binkley)</a>
  * @todo Needs documentation.
@@ -70,7 +78,11 @@ public final class ServiceBinder<E extends Exception> {
     private final With<E> with;
 
     /**
-     * Creates a service binder for Guice with the given <var>binder</var>.
+     * Creates a service binder for Guice with the given <var>binder</var>.  Discovered classes are
+     * bound to the injector with the multibindings extension: <pre>
+     * bindings.addBinding().to(implementation)</pre>
+     *
+     * Note - this does not work for {@link Module}s in Guice 3.0.
      *
      * @param binder the Guice binder, never missing
      *
@@ -83,7 +95,9 @@ public final class ServiceBinder<E extends Exception> {
 
     /**
      * Creates a service binder for Spring Framkwork with the given bean definition
-     * <var>registry</var>.
+     * <var>registry</var>.  Discovered classes are bound to the context with: <pre>
+     * registry.registerBeanDefinition(implementation.getName(),
+     *     new RootBeanDefinition(implementation, AUTOWIRE_CONSTRUCTOR, true))</pre>
      *
      * @param registry the Spring bean definition registry, never missing
      *
@@ -128,12 +142,21 @@ public final class ServiceBinder<E extends Exception> {
         this.with = with;
     }
 
+    private static <T> Enumeration<URL> configs(final Class<T> service,
+            final ClassLoader classLoader) {
+        try {
+            return classLoader.getResources(PREFIX + service.getName());
+        } catch (final IOException e) {
+            return fail(service, "Cannot load configuration", e);
+        }
+    }
+
     private static <T, E extends Exception> void bind(final Class<T> service,
             final ClassLoader classLoader, final URL config, final With<E> with) {
         final BufferedReader reader = config(service, config);
         try {
             with.bind(service, implementations(service, classLoader, config, reader));
-        } catch (final Exception e) {
+        } catch (final Exception e) { // Cannot declare a generic catch using <E>
             fail(service, config, "Cannot bind implemntations", e);
         } finally {
             try {
@@ -141,6 +164,14 @@ public final class ServiceBinder<E extends Exception> {
             } catch (final IOException e) {
                 fail(service, config, "Cannot close", e);
             }
+        }
+    }
+
+    private static <T> BufferedReader config(final Class<T> service, final URL config) {
+        try {
+            return new BufferedReader(new InputStreamReader(config.openStream(), UTF8));
+        } catch (final IOException e) {
+            return fail(service, config, "Cannot read service configuration", e);
         }
     }
 
@@ -152,16 +183,6 @@ public final class ServiceBinder<E extends Exception> {
             if (!skip(implementation))
                 implementations.add(loadClass(service, classLoader, config, implementation));
         return implementations;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T> Class<? extends T> loadClass(final Class<T> service,
-            final ClassLoader classLoader, final URL config, final String className) {
-        try {
-            return (Class<? extends T>) classLoader.loadClass(className);
-        } catch (final ClassNotFoundException e) {
-            return fail(service, config, "Cannot bind implementation for " + className, e);
-        }
     }
 
     private static <T> String implementation(final Class<T> service, final URL config,
@@ -177,20 +198,13 @@ public final class ServiceBinder<E extends Exception> {
         }
     }
 
-    private static <T> BufferedReader config(final Class<T> service, final URL config) {
+    @SuppressWarnings("unchecked")
+    private static <T> Class<? extends T> loadClass(final Class<T> service,
+            final ClassLoader classLoader, final URL config, final String className) {
         try {
-            return new BufferedReader(new InputStreamReader(config.openStream(), UTF8));
-        } catch (final IOException e) {
-            return fail(service, config, "Cannot read service configuration", e);
-        }
-    }
-
-    private static <T> Enumeration<URL> configs(final Class<T> service,
-            final ClassLoader classLoader) {
-        try {
-            return classLoader.getResources(PREFIX + service.getName());
-        } catch (final IOException e) {
-            return fail(service, "Cannot load configuration", e);
+            return (Class<? extends T>) classLoader.loadClass(className);
+        } catch (final ClassNotFoundException e) {
+            return fail(service, config, "Cannot bind implementation for " + className, e);
         }
     }
 

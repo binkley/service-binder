@@ -66,7 +66,7 @@ public final class ServiceBinderTest {
     }
 
     @Test
-    public void shouldBindServicesWithGuiceDirectly() {
+    public void shouldBindServicesWithGuice() {
         final Set<Class<? extends Bob>> found = new HashSet<Class<? extends Bob>>();
         for (final Bob bob : guice().getInstance(Key.get(new TypeLiteral<Set<Bob>>() {})))
             found.add(bob.getClass());
@@ -79,17 +79,17 @@ public final class ServiceBinderTest {
     }
 
     @Test
-    public void shouldConstructorInjectServicesWithGuiceDirectly() {
+    public void shouldConstructorInjectServicesWithGuice() {
         assertThat(guice().getInstance(Nancy.class).catName, is(equalTo("Felix")));
     }
 
     @Test
-    public void shouldMethodInjectServicesWithGuiceDirectly() {
+    public void shouldMethodInjectServicesWithGuice() {
         assertThat(guice().getInstance(Nancy.class).favoriteColor, is(equalTo("White")));
     }
 
     @Test
-    public void shouldFieldInjectServicesWithGuiceDirectly() {
+    public void shouldFieldInjectServicesWithGuice() {
         assertThat(guice().getInstance(Nancy.class).nickName, is(equalTo("Fancy")));
     }
 
