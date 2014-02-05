@@ -28,7 +28,9 @@
 package hm.binkley.util;
 
 import com.google.inject.Binder;
+import com.google.inject.Module;
 import com.google.inject.multibindings.Multibinder;
+import org.springframework.beans.factory.serviceloader.ServiceLoaderFactoryBean;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 
@@ -42,17 +44,26 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.ServiceConfigurationError;
+import java.util.ServiceLoader;
 import java.util.regex.Pattern;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static java.lang.Character.charCount;
 import static java.lang.Character.isWhitespace;
 import static java.lang.ClassLoader.getSystemClassLoader;
+import static java.lang.Integer.toHexString;
 import static java.lang.Thread.currentThread;
 import static org.springframework.beans.factory.support.AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR;
 
 /**
- * {@code Bindings} <b>needs documentation</b>.
+ * {@code ServiceBinder} is {@link ServiceLoader} with injection.  Create a service binder for Guice
+ * using {@link #with(Binder)} or Spring Framework using {@link #with(BeanDefinitionRegistry)}. The
+ * service binder is reuseable. <p/> To discover and bind implementations of a service, use {@link
+ * #bind(Class)} or {@link #bind(Class, ClassLoader)}. <p/> All exeptions thrown internally appear
+ * as {@link ServiceConfigurationError}.
+ *
+ * @param <E> the exception type thrown internally, not visible outside declaration
  *
  * @author <a href="mailto:binkley@alumni.rice.edu">B. K. Oxley (binkley)</a>
  * @todo Needs documentation.
@@ -64,46 +75,92 @@ public final class ServiceBinder<E extends Exception> {
 
     private final With<E> with;
 
-    public interface With<E extends Exception> {
-        <T> void bind(final Class<T> service, final Iterable<Class<? extends T>> implementation)
-                throws E;
-    }
-
+    /**
+     * Creates a service binder for Guice with the given <var>binder</var>.  Discovered classes are
+     * bound to the injector with the multibindings extension: <pre>
+     * bindings.addBinding().to(implementation)</pre>
+     *
+     * Note - this does not work for {@link Module}s in Guice 3.0.
+     *
+     * @param binder the Guice binder, never missing
+     *
+     * @return the service binder, never missing
+     */
+    @Nonnull
     public static ServiceBinder<RuntimeException> with(@Nonnull final Binder binder) {
         return new ServiceBinder<RuntimeException>(new WithGuice(binder));
     }
 
+    /**
+     * Creates a service binder for Spring Framkwork with the given bean definition
+     * <var>registry</var>.  Discovered classes are bound to the context with: <pre>
+     * registry.registerBeanDefinition(implementation.getName(),
+     *     new RootBeanDefinition(implementation, AUTOWIRE_CONSTRUCTOR, true))</pre>
+     *
+     * @param registry the Spring bean definition registry, never missing
+     *
+     * @return the service binder, never missing
+     *
+     * @see ServiceLoaderFactoryBean
+     */
+    @Nonnull
     public static ServiceBinder<ClassNotFoundException> with(
             @Nonnull final BeanDefinitionRegistry registry) {
         return new ServiceBinder<ClassNotFoundException>(new WithSpring(registry));
     }
 
+    /**
+     * Binds injected instances of the <var>service</var> type token to the binding instance using
+     * the system class loader.
+     *
+     * @param service the service type token, never missing
+     * @param <T> the service type
+     */
     public <T> void bind(@Nonnull final Class<T> service) {
         bind(service, currentThread().getContextClassLoader());
     }
 
+    @Override
+    public String toString() {
+        return getClass().getName() + "[" + with.getClass().getSimpleName() + "]@" +
+                toHexString(hashCode());
+    }
+
+    /**
+     * Binds injected instances of the <var>service</var> type tokento the binding instance using
+     * the given <var>classLoader</var>, or the system class loader if {@code null}.
+     *
+     * @param service the service type token, never missing
+     * @param classLoader the classloader, if {@code null} the system class loader
+     * @param <T> the service type
+     */
     public <T> void bind(@Nonnull final Class<T> service, @Nullable ClassLoader classLoader) {
         if (null == classLoader)
             classLoader = getSystemClassLoader();
         final Enumeration<URL> configs = configs(service, classLoader);
         while (configs.hasMoreElements())
-            bind(service, classLoader, configs.nextElement());
+            bind(service, classLoader, configs.nextElement(), with);
     }
 
     private ServiceBinder(final With<E> with) {
         this.with = with;
     }
 
-    private <T> void bind(final Class<T> service, final ClassLoader classLoader, final URL config) {
+    private static <T> Enumeration<URL> configs(final Class<T> service,
+            final ClassLoader classLoader) {
+        try {
+            return classLoader.getResources(PREFIX + service.getName());
+        } catch (final IOException e) {
+            return fail(service, "Cannot load configuration", e);
+        }
+    }
+
+    private static <T, E extends Exception> void bind(final Class<T> service,
+            final ClassLoader classLoader, final URL config, final With<E> with) {
         final BufferedReader reader = config(service, config);
         try {
-            final List<Class<? extends T>> implementations = new ArrayList<Class<? extends T>>();
-            String implementation;
-            while (null != (implementation = implementation(service, config, reader)))
-                if (!skip(implementation))
-                    implementations.add(loadClass(service, classLoader, config, implementation));
-            with.bind(service, implementations);
-        } catch (final Exception e) {
+            with.bind(service, implementations(service, classLoader, config, reader));
+        } catch (final Exception e) { // Cannot declare a generic catch using <E>
             fail(service, config, "Cannot bind implemntations", e);
         } finally {
             try {
@@ -114,14 +171,22 @@ public final class ServiceBinder<E extends Exception> {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private static <T> Class<? extends T> loadClass(final Class<T> service,
-            final ClassLoader classLoader, final URL config, final String className) {
+    private static <T> BufferedReader config(final Class<T> service, final URL config) {
         try {
-            return (Class<? extends T>) classLoader.loadClass(className);
-        } catch (final ClassNotFoundException e) {
-            return fail(service, config, "Cannot bind implementation for " + className, e);
+            return new BufferedReader(new InputStreamReader(config.openStream(), UTF8));
+        } catch (final IOException e) {
+            return fail(service, config, "Cannot read service configuration", e);
         }
+    }
+
+    private static <T> List<Class<? extends T>> implementations(final Class<T> service,
+            final ClassLoader classLoader, final URL config, final BufferedReader reader) {
+        final List<Class<? extends T>> implementations = new ArrayList<Class<? extends T>>();
+        String implementation;
+        while (null != (implementation = implementation(service, config, reader)))
+            if (!skip(implementation))
+                implementations.add(loadClass(service, classLoader, config, implementation));
+        return implementations;
     }
 
     private static <T> String implementation(final Class<T> service, final URL config,
@@ -137,20 +202,13 @@ public final class ServiceBinder<E extends Exception> {
         }
     }
 
-    private static <T> BufferedReader config(final Class<T> service, final URL config) {
+    @SuppressWarnings("unchecked")
+    private static <T> Class<? extends T> loadClass(final Class<T> service,
+            final ClassLoader classLoader, final URL config, final String className) {
         try {
-            return new BufferedReader(new InputStreamReader(config.openStream(), UTF8));
-        } catch (final IOException e) {
-            return fail(service, config, "Cannot read service configuration", e);
-        }
-    }
-
-    private static <T> Enumeration<URL> configs(final Class<T> service,
-            final ClassLoader classLoader) {
-        try {
-            return classLoader.getResources(PREFIX + service.getName());
-        } catch (final IOException e) {
-            return fail(service, "Cannot load configuration", e);
+            return (Class<? extends T>) classLoader.loadClass(className);
+        } catch (final ClassNotFoundException e) {
+            return fail(service, config, "Cannot bind implementation for " + className, e);
         }
     }
 
@@ -170,12 +228,18 @@ public final class ServiceBinder<E extends Exception> {
     }
 
     private static <R> R fail(final Class<?> service, final String message, final Exception cause) {
-        throw new ServiceBinderError(service, message, cause);
+        throw new ServiceConfigurationError(service.getName() + ": " + message, cause);
     }
 
     private static <R> R fail(final Class<?> service, final URL config, final String message,
             final Exception cause) {
-        throw new ServiceBinderError(service, config + ": " + message, cause);
+        throw new ServiceConfigurationError(service.getName() + ": " + config + ": " + message,
+                cause);
+    }
+
+    private interface With<E extends Exception> {
+        <T> void bind(final Class<T> service, final Iterable<Class<? extends T>> implementation)
+                throws E;
     }
 
     private static class WithGuice

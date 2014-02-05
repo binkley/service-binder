@@ -30,14 +30,15 @@ package hm.binkley.util;
 import com.google.inject.AbstractModule;
 import com.google.inject.Injector;
 import com.google.inject.Key;
+import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
 import org.junit.Before;
 import org.junit.Test;
 import org.kohsuke.MetaInfServices;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.beans.factory.config.ConstructorArgumentValues;
-import org.springframework.beans.factory.support.GenericBeanDefinition;
-import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -78,8 +79,18 @@ public final class ServiceBinderTest {
     }
 
     @Test
-    public void shouldInjectServicesWithGuice() {
+    public void shouldConstructorInjectServicesWithGuice() {
         assertThat(guice().getInstance(Nancy.class).catName, is(equalTo("Felix")));
+    }
+
+    @Test
+    public void shouldMethodInjectServicesWithGuice() {
+        assertThat(guice().getInstance(Nancy.class).favoriteColor, is(equalTo("White")));
+    }
+
+    @Test
+    public void shouldFieldInjectServicesWithGuice() {
+        assertThat(guice().getInstance(Nancy.class).nickName, is(equalTo("Fancy")));
     }
 
     @Test
@@ -96,8 +107,18 @@ public final class ServiceBinderTest {
     }
 
     @Test
-    public void shouldInjectServicesWithSpring() {
+    public void shouldConstructorInjectServicesWithSpring() {
         assertThat(spring().getBean(Nancy.class).catName, is(equalTo("Felix")));
+    }
+
+    @Test
+    public void shouldMethodInjectServicesWithSpring() {
+        assertThat(spring().getBean(Nancy.class).favoriteColor, is(equalTo("White")));
+    }
+
+    @Test
+    public void shouldFieldInjectServicesWithSpring() {
+        assertThat(spring().getBean(Nancy.class).nickName, is(equalTo("Fancy")));
     }
 
     public interface Bob {}
@@ -110,18 +131,30 @@ public final class ServiceBinderTest {
     public static final class Nancy
             implements Bob {
         private final String catName;
+        @Inject
+        @Named("nick-name")
+        private String nickName;
+        private String favoriteColor;
 
         @Inject
-        public Nancy(@Named("cat-name") @Value("${cat-name}") final String catName) {
+        public Nancy(@Named("cat-name") final String catName) {
             this.catName = catName;
+        }
+
+        @Inject
+        public void setFavoriteColor(@Named("favorite-color") final String favoriteColor) {
+            this.favoriteColor = favoriteColor;
         }
     }
 
+    @MetaInfServices(Module.class)
     public static final class TestModule
             extends AbstractModule {
         @Override
         protected void configure() {
             bindConstant().annotatedWith(named("cat-name")).to("Felix");
+            bindConstant().annotatedWith(named("nick-name")).to("Fancy");
+            bindConstant().annotatedWith(named("favorite-color")).to("White");
             with(binder()).bind(Bob.class);
         }
     }
@@ -130,16 +163,29 @@ public final class ServiceBinderTest {
         return createInjector(new TestModule());
     }
 
-    private static GenericApplicationContext spring() {
-        final GenericApplicationContext context = new GenericApplicationContext();
-        final GenericBeanDefinition catName = new GenericBeanDefinition();
-        catName.setBeanClass(String.class);
-        final ConstructorArgumentValues value = new ConstructorArgumentValues();
-        value.addGenericArgumentValue("Felix");
-        catName.setConstructorArgumentValues(value);
-        context.registerBeanDefinition("cat-name", catName);
+    private static ApplicationContext spring() {
+        final AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
+        context.register(Dependencies.class);
         with(context).bind(Bob.class);
         context.refresh();
         return context;
+    }
+
+    @Configuration
+    public static class Dependencies {
+        @Bean(name = "cat-name")
+        public String catName() {
+            return "Felix";
+        }
+
+        @Bean(name = "nick-name")
+        public String nickName() {
+            return "Fancy";
+        }
+
+        @Bean(name = "favorite-color")
+        public String favoriteColor() {
+            return "White";
+        }
     }
 }
