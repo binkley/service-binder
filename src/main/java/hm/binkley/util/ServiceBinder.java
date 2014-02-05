@@ -52,18 +52,16 @@ import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static java.lang.Character.charCount;
 import static java.lang.Character.isWhitespace;
 import static java.lang.ClassLoader.getSystemClassLoader;
+import static java.lang.Integer.toHexString;
 import static java.lang.Thread.currentThread;
 import static org.springframework.beans.factory.support.AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR;
 
 /**
  * {@code ServiceBinder} is {@link ServiceLoader} with injection.  Create a service binder for Guice
  * using {@link #with(Binder)} or Spring Framework using {@link #with(BeanDefinitionRegistry)}. The
- * service binder is reuseable.
- * <p/>
- * To discover and bind implementations of a service, use {@link #bind(Class)} or {@link
- * #bind(Class, ClassLoader)}.
- * <p/>
- * All exeptions thrown internally appear as {@link ServiceConfigurationError}.
+ * service binder is reuseable. <p/> To discover and bind implementations of a service, use {@link
+ * #bind(Class)} or {@link #bind(Class, ClassLoader)}. <p/> All exeptions thrown internally appear
+ * as {@link ServiceConfigurationError}.
  *
  * @param <E> the exception type thrown internally, not visible outside declaration
  *
@@ -120,6 +118,12 @@ public final class ServiceBinder<E extends Exception> {
      */
     public <T> void bind(@Nonnull final Class<T> service) {
         bind(service, currentThread().getContextClassLoader());
+    }
+
+    @Override
+    public String toString() {
+        return getClass().getName() + "[" + with.getClass().getSimpleName() + "]@" +
+                toHexString(hashCode());
     }
 
     /**
