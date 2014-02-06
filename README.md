@@ -100,3 +100,20 @@ useful to annotate your service implementations: it generates the META-INF servi
 When using the maven shade plugin you may also find [the services transformer]
 (https://maven.apache.org/plugins/maven-shade-plugin/examples/resource-transformers.html#ServicesResourceTransformer)
 useful to merge `META-INF/services` files.
+
+# Releases
+
+## 0.3
+
+* Use ServiceConfigurationError rather than ServiceBinderError
+* Documentation
+* Improved Spring unit tests
+
+## 0.2
+
+* Support for Guice
+* Support for Spring Framework
+
+## 0.1
+
+Not released.
